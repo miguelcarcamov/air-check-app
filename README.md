@@ -67,6 +67,7 @@ If you rename the repo, set `VITE_BASE_PATH` in `.github/workflows/pages.yml` to
 | Error | Fix |
 |-------|-----|
 | `Get Pages site failed` / `Not Found` | Enable Pages with source **GitHub Actions** in repo Settings. |
+| App looks unstyled (plain HTML) | Pages may be serving the repo root instead of the Vite `dist/` build. Set **Source → GitHub Actions**, or use the relative `./src/` paths in `index.html` (fixed in source). |
 | Assets 404 on Pages | `VITE_BASE_PATH` must match the repo name (e.g. `/air-check-app/`). |
 | `Node 20 is being deprecated` | Informational — workflow uses Node 22. |
 
