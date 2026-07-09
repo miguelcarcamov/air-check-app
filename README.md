@@ -52,11 +52,16 @@ Geolocation and fetches require the dev server (not `file://`).
 
 ## Deploy to GitHub Pages
 
+You **do not** commit or pick a `dist/` folder in Settings — that folder is built by CI and is correctly gitignored.
+
 **One-time setup:**
 
 1. Push this repo to GitHub.
-2. **Settings → Pages → Source → GitHub Actions**.
-3. Push to `main` — CI runs tests, builds `dist/`, and deploys.
+2. **Settings → Pages → Build and deployment → Source → GitHub Actions**  
+   (not “Deploy from a branch” — there is no `dist/` in the repo on purpose).
+3. Push to `main`, or re-run **Actions → Deploy to GitHub Pages**.
+
+CI runs `npm ci` → `npm test` → `npm run build` → uploads the `dist/` artifact to Pages.
 
 Live URL: `https://miguelcarcamov.github.io/air-check-app/`
 
@@ -64,10 +69,11 @@ If you rename the repo, set `VITE_BASE_PATH` in `.github/workflows/pages.yml` to
 
 ### Troubleshooting
 
-| Error | Fix |
-|-------|-----|
-| `Get Pages site failed` / `Not Found` | Enable Pages with source **GitHub Actions** in repo Settings. |
-| App looks unstyled (plain HTML) | Pages may be serving the repo root instead of the Vite `dist/` build. Set **Source → GitHub Actions**, or use the relative `./src/` paths in `index.html` (fixed in source). |
+| Symptom | Fix |
+|---------|-----|
+| `Get Pages site failed` / `Not Found` | Enable Pages; set Source to **GitHub Actions**. |
+| Styled but buttons dead / no location | Branch deploy is serving raw source; switch to **GitHub Actions** and re-run the workflow. |
+| App looks unstyled (plain HTML) | Same — need the Vite build from Actions, not repo root. |
 | Assets 404 on Pages | `VITE_BASE_PATH` must match the repo name (e.g. `/air-check-app/`). |
 | `Node 20 is being deprecated` | Informational — workflow uses Node 22. |
 

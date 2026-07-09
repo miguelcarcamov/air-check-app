@@ -1,5 +1,3 @@
-import "./css/main.css";
-
 import {
   fetchBridgeReading,
   getPosition,
