@@ -4,6 +4,7 @@ import {
   fetchBridgeReading,
   getPosition,
   loadAirQuality,
+  loadLocalContext,
   loadLocationLabel,
   searchLocations,
 } from "./api.js";
@@ -46,6 +47,12 @@ async function tryBridge() {
   }
 }
 
+async function loadOutdoorBundle(coords) {
+  const [outdoor, local] = await Promise.all([loadAirQuality(coords), loadLocalContext(coords)]);
+  state.outdoor = outdoor;
+  state.local = local;
+}
+
 export async function refreshAll() {
   setRefreshSpinning(true);
   setBanner(null);
@@ -55,7 +62,7 @@ export async function refreshAll() {
       const { lat, lon, label } = state.locationOverride;
       state.coords = { lat, lon };
       state.locationLabel = label;
-      state.outdoor = await loadAirQuality({ lat, lon });
+      await loadOutdoorBundle({ lat, lon });
       await tryBridge();
       render();
       return;
@@ -81,12 +88,9 @@ export async function refreshAll() {
     }
 
     state.coords = coords;
-    const [outdoor, label] = await Promise.all([
-      loadAirQuality(coords),
-      loadLocationLabel(coords),
-    ]);
-    state.outdoor = outdoor;
+    const label = await loadLocationLabel(coords);
     state.locationLabel = label;
+    await loadOutdoorBundle(coords);
     await tryBridge();
     render();
   } catch (e) {

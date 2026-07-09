@@ -9,6 +9,7 @@ export const state = {
   bridgeUrl: null,
   outdoor: null,
   indoor: null,
+  local: null,
 };
 
 /** @returns {Promise<import('./types.js').AppState>} */

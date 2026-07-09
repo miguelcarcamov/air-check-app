@@ -23,6 +23,7 @@ export const SINCA_URL = "https://sinca.mma.gob.cl/index.php/json/listadomapa2k1
 export const SINCA_MAX_DISTANCE_KM = 30;
 
 export const OPEN_METEO_AIR_QUALITY = "https://air-quality-api.open-meteo.com/v1/air-quality";
+export const OPEN_METEO_FORECAST = "https://api.open-meteo.com/v1/forecast";
 export const OPEN_METEO_GEOCODING = "https://geocoding-api.open-meteo.com/v1/search";
 export const REVERSE_GEOCODE_URL = "https://api.bigdatacloud.net/data/reverse-geocode-client";
 

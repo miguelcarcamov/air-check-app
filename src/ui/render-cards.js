@@ -108,14 +108,24 @@ export function renderCards() {
   return { outCat, inCat, outPmLevel, outO3Level, inLevel, outPm, inPm };
 }
 
+/** Format local hour as 12h clock label. */
+function formatLocalHour(hour) {
+  const h = hour % 12 || 12;
+  const ampm = hour < 12 ? "AM" : "PM";
+  return `${h} ${ampm} local`;
+}
+
 export function renderSubtitle() {
   const subtitle = document.getElementById("subtitle");
   const subtitleText = subtitle?.firstChild;
   if (!(subtitleText instanceof Text)) return;
 
-  if (state.locationLabel && state.outdoor) {
-    subtitleText.textContent = `${state.locationLabel} · updated ${relTime(state.outdoor.fetchedAt)} `;
-  } else if (state.locationLabel) {
-    subtitleText.textContent = `${state.locationLabel} `;
+  const parts = [];
+  if (state.locationLabel) parts.push(state.locationLabel);
+  if (state.local) parts.push(formatLocalHour(state.local.localHour));
+  if (state.outdoor) parts.push(`updated ${relTime(state.outdoor.fetchedAt)}`);
+
+  if (parts.length) {
+    subtitleText.textContent = `${parts.join(" · ")} `;
   }
 }

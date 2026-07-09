@@ -118,15 +118,6 @@ export function purifierVerdict(indoorPm, outdoorPm) {
     text = "Indoor air is well above WHO guideline levels and needs active filtering.";
   }
 
-  if (outdoorPm != null && indoorPm != null) {
-    if (outdoorPm < indoorPm - 5) {
-      text +=
-        " Outside air is cleaner right now — a few minutes of cross-ventilation could help as much as the purifier.";
-    } else if (outdoorPm > indoorPm + 5) {
-      text += " Outside air is worse — keep windows closed and let the purifier do the work.";
-    }
-  }
-
   return { title, text };
 }
 

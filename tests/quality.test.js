@@ -72,15 +72,10 @@ describe("purifierVerdict", () => {
     expect(purifierVerdict(null, 10).title).toBe("Add a reading");
   });
 
-  it("suggests ventilation when outside is much cleaner", () => {
-    const v = purifierVerdict(60, 10);
-    expect(v.title).toBe("Turn it on");
-    expect(v.text).toContain("cross-ventilation");
-  });
-
-  it("suggests keeping windows closed when outside is worse", () => {
+  it("focuses on filtration when outdoor is worse", () => {
     const v = purifierVerdict(10, 40);
-    expect(v.text).toContain("keep windows closed");
+    expect(v.title).toBe("Not needed");
+    expect(v.text).not.toContain("window");
   });
 });
 

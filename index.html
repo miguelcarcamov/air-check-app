@@ -162,6 +162,8 @@
           </div>
         </div>
 
+        <div id="inversionLine" class="inversion-line" style="display: none"></div>
+
         <div class="verdicts">
           <div class="verdict" id="exerciseVerdict" style="border-left-color: var(--unknown)">
             <div class="verdict-head">
@@ -169,6 +171,13 @@
               <span class="verdict-title" id="exerciseTitle">Checking…</span>
             </div>
             <div class="verdict-text" id="exerciseText">Fetching outdoor conditions.</div>
+          </div>
+          <div class="verdict" id="ventilationVerdict" style="border-left-color: var(--unknown)">
+            <div class="verdict-head">
+              <span class="verdict-icon" aria-hidden="true">🪟</span>
+              <span class="verdict-title" id="ventilationTitle">Checking…</span>
+            </div>
+            <div class="verdict-text" id="ventilationText">Estimating ventilation window from local time and temperature profile.</div>
           </div>
           <div class="verdict" id="purifierVerdict" style="border-left-color: var(--unknown)">
             <div class="verdict-head">
@@ -189,7 +198,8 @@
           validation studies (roughly 5–20%+ in regions that have been studied), but no dedicated
           validation exists for Chile specifically — treat a ○ reading as a rough guide, not a
           precise number. Ozone always comes from the model. Indoor reading is whatever you last
-          logged from your own sensor.
+          logged from your own sensor. Ventilation timing uses local clock and a 2 m vs 80 m
+          temperature gradient from Open-Meteo — a rough inversion proxy, not a measured sounding.
         </div>
       </div>
     </div>

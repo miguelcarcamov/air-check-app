@@ -1,10 +1,12 @@
 import {
   OPEN_METEO_AIR_QUALITY,
+  OPEN_METEO_FORECAST,
   OPEN_METEO_GEOCODING,
   REVERSE_GEOCODE_URL,
   SINCA_MAX_DISTANCE_KM,
   SINCA_URL,
 } from "./config.js";
+import { assessInversion, localClockFromOffset } from "./inversion.js";
 import { extractCurrent } from "./quality.js";
 
 /**
@@ -179,4 +181,34 @@ export async function fetchBridgeReading(bridgeUrl) {
   const val = data.pm2_5 ?? data.pm25 ?? data.value;
   if (val == null || Number.isNaN(val)) throw new Error("no pm2_5 field");
   return { pm2_5: parseFloat(val), ts: Date.now(), source: "bridge" };
+}
+
+/**
+ * Local weather profile for inversion estimation (Open-Meteo forecast, location timezone).
+ * @param {import('./types.js').Coords} coords
+ * @returns {Promise<import('./types.js').LocalContext>}
+ */
+export async function loadLocalContext(coords) {
+  const url =
+    `${OPEN_METEO_FORECAST}?latitude=${coords.lat}&longitude=${coords.lon}` +
+    "&current=temperature_2m,temperature_80m&timezone=auto";
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("weather fetch failed");
+  const data = await res.json();
+
+  const offsetSec = data.utc_offset_seconds || 0;
+  const { localHour, month } = localClockFromOffset(offsetSec);
+  const temp2m = data.current?.temperature_2m ?? null;
+  const temp80m = data.current?.temperature_80m ?? null;
+
+  return {
+    timezone: data.timezone || "UTC",
+    localHour,
+    month,
+    temp2m,
+    temp80m,
+    inversion: assessInversion({ temp2m, temp80m, localHour, month }),
+    fetchedAt: Date.now(),
+  };
 }

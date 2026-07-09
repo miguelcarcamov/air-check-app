@@ -36,6 +36,30 @@
  */
 
 /**
+ * @typedef {'active' | 'breaking' | 'unlikely' | 'unknown'} InversionPhase
+ */
+
+/**
+ * @typedef {Object} InversionAssessment
+ * @property {InversionPhase} phase
+ * @property {number} score Heuristic score (higher = stronger inversion signal)
+ * @property {number | null} gradientC temperature_80m − temperature_2m in °C
+ * @property {string} label Short UI label
+ * @property {string} detail One-line explanation
+ */
+
+/**
+ * @typedef {Object} LocalContext
+ * @property {string} timezone IANA timezone from Open-Meteo
+ * @property {number} localHour 0–23 at the location
+ * @property {number} month 1–12 at the location
+ * @property {number | null} temp2m °C at 2 m
+ * @property {number | null} temp80m °C at 80 m
+ * @property {InversionAssessment} inversion
+ * @property {number} fetchedAt Unix ms timestamp
+ */
+
+/**
  * @typedef {'manual' | 'bridge'} IndoorSource
  */
 
@@ -54,6 +78,7 @@
  * @property {string | null} bridgeUrl
  * @property {OutdoorReading | null} outdoor
  * @property {IndoorReading | null} indoor
+ * @property {LocalContext | null} local Weather & inversion context at the location
  */
 
 /**
