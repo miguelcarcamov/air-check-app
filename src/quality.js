@@ -1,8 +1,12 @@
 import { PM25_TIERS } from "./config.js";
 
+/**
+ * @param {number | null | undefined} concentration µg/m³
+ * @returns {import('./types.js').Tier}
+ */
 export function pm25Tier(concentration) {
   if (concentration == null || Number.isNaN(concentration)) {
-    return { level: null, key: "unknown", label: "--", color: "var(--unknown)" };
+    return { max: Infinity, level: null, key: "unknown", label: "--", color: "var(--unknown)" };
   }
   const c = Math.max(0, concentration);
   for (const tier of PM25_TIERS) {
@@ -11,7 +15,11 @@ export function pm25Tier(concentration) {
   return PM25_TIERS[PM25_TIERS.length - 1];
 }
 
-/** Map ozone onto the same 0–5 ordinal scale as PM2.5. */
+/**
+ * Map ozone onto the same 0–5 ordinal scale as PM2.5.
+ * @param {number | null | undefined} o3 µg/m³
+ * @returns {number | null}
+ */
 export function ozoneLevel(o3) {
   if (o3 == null || Number.isNaN(o3)) return null;
   if (o3 <= 100) return 0;
@@ -19,11 +27,22 @@ export function ozoneLevel(o3) {
   return 3;
 }
 
+/**
+ * @param {number | null | undefined} level Ordinal 0–5
+ * @returns {import('./types.js').Tier}
+ */
 export function categoryFor(level) {
-  if (level == null) return { key: "unknown", label: "--", color: "var(--unknown)" };
+  if (level == null) {
+    return { max: Infinity, level: null, key: "unknown", label: "--", color: "var(--unknown)" };
+  }
   return PM25_TIERS.find((t) => t.level === level) || PM25_TIERS[PM25_TIERS.length - 1];
 }
 
+/**
+ * @param {number | null | undefined} pm25Level
+ * @param {number | null | undefined} o3Level
+ * @returns {import('./types.js').Verdict}
+ */
 export function exerciseVerdict(pm25Level, o3Level) {
   if (pm25Level == null && o3Level == null) {
     return { title: "No data yet", text: "Waiting on outdoor readings." };
@@ -68,6 +87,11 @@ export function exerciseVerdict(pm25Level, o3Level) {
   return { title: "Stay in", text: "Extreme pollution levels. Do not exercise outside." };
 }
 
+/**
+ * @param {number | null | undefined} indoorPm µg/m³
+ * @param {number | null | undefined} outdoorPm µg/m³
+ * @returns {import('./types.js').Verdict}
+ */
 export function purifierVerdict(indoorPm, outdoorPm) {
   const inLevel = pm25Tier(indoorPm).level;
   if (inLevel == null) {
@@ -106,21 +130,31 @@ export function purifierVerdict(indoorPm, outdoorPm) {
   return { title, text };
 }
 
-/** Pick the current hour from Open-Meteo hourly or current payload. */
+/**
+ * Pick the current hour from Open-Meteo hourly or current payload.
+ * @param {Record<string, unknown>} data Open-Meteo air-quality JSON
+ * @returns {import('./types.js').OpenMeteoCurrentSlice}
+ */
 export function extractCurrent(data) {
-  if (data.current?.pm2_5 != null) {
+  const current = /** @type {{ pm2_5?: number, pm10?: number, us_aqi?: number, ozone?: number }} */ (
+    data.current
+  );
+  if (current?.pm2_5 != null) {
     return {
-      pm2_5: data.current.pm2_5,
-      pm10: data.current.pm10,
-      us_aqi: data.current.us_aqi,
-      ozone: data.current.ozone,
+      pm2_5: current.pm2_5,
+      pm10: current.pm10 ?? null,
+      us_aqi: current.us_aqi ?? null,
+      ozone: current.ozone ?? null,
     };
   }
 
-  const times = data.hourly.time;
-  const offsetMs = (data.utc_offset_seconds || 0) * 1000;
+  const hourly = /** @type {{ time: string[], pm2_5?: number[], pm10?: number[], us_aqi?: number[], ozone?: number[] }} */ (
+    data.hourly
+  );
+  const times = hourly.time;
+  const offsetMs = (/** @type {number} */ (data.utc_offset_seconds) || 0) * 1000;
   const nowLocal = new Date(Date.now() + offsetMs);
-  const pad = (n) => String(n).padStart(2, "0");
+  const pad = (/** @type {number} */ n) => String(n).padStart(2, "0");
   const nowStr = `${nowLocal.getUTCFullYear()}-${pad(nowLocal.getUTCMonth() + 1)}-${pad(nowLocal.getUTCDate())}T${pad(nowLocal.getUTCHours())}:00`;
 
   let idx = 0;
@@ -129,9 +163,9 @@ export function extractCurrent(data) {
   }
 
   return {
-    pm2_5: data.hourly.pm2_5?.[idx] ?? null,
-    pm10: data.hourly.pm10?.[idx] ?? null,
-    us_aqi: data.hourly.us_aqi?.[idx] ?? null,
-    ozone: data.hourly.ozone?.[idx] ?? null,
+    pm2_5: hourly.pm2_5?.[idx] ?? null,
+    pm10: hourly.pm10?.[idx] ?? null,
+    us_aqi: hourly.us_aqi?.[idx] ?? null,
+    ozone: hourly.ozone?.[idx] ?? null,
   };
 }

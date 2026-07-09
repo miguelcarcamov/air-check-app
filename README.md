@@ -2,7 +2,7 @@
 
 A lightweight web app that compares outdoor and indoor air quality using [WHO 2021 guidelines](https://www.who.int/news-room/feature-stories/detail/what-are-the-who-air-quality-guidelines), with practical recommendations for outdoor exercise and air purifier use.
 
-No build step — plain HTML, CSS, and ES modules.
+Built with **Vite** (vanilla JS modules) — fast local dev, optimized production build for GitHub Pages.
 
 ## Features
 
@@ -15,54 +15,64 @@ No build step — plain HTML, CSS, and ES modules.
 
 ```
 air_check_app/
-├── index.html          # App shell
-├── css/
-│   └── main.css        # Styles
-├── js/
-│   ├── main.js         # Entry point — events & init
-│   ├── config.js       # Constants & API endpoints
-│   ├── storage.js      # localStorage adapter
-│   ├── quality.js      # WHO tiers, verdicts, data parsing
-│   ├── api.js          # Geolocation, geocoding, air quality APIs
-│   ├── state.js        # App state & persistence
-│   └── ui.js           # DOM rendering
-└── .github/workflows/
-    └── pages.yml       # GitHub Pages deployment
+├── index.html              # App shell + HTML templates
+├── src/
+│   ├── main.js             # Entry point — events & init
+│   ├── types.js            # JSDoc shared types
+│   ├── config.js           # Constants & API endpoints
+│   ├── storage.js          # localStorage adapter
+│   ├── quality.js          # WHO tiers, verdicts, data parsing
+│   ├── api.js              # Geolocation, geocoding, air quality APIs
+│   ├── state.js            # App state & persistence
+│   ├── css/main.css
+│   └── ui/
+│       ├── index.js        # Composes render modules
+│       ├── dom.js          # DOM helpers
+│       ├── templates.js    # `<template>` cloning
+│       ├── render-cards.js
+│       ├── render-verdicts.js
+│       └── render-settings.js
+├── tests/
+│   └── quality.test.js     # Vitest unit tests
+├── vite.config.js
+└── .github/workflows/pages.yml
 ```
 
 ## Local development
 
-Serve the folder over HTTP (required for ES modules and geolocation):
-
 ```bash
-# Python
-python -m http.server 8080
-
-# Node (npx, no install)
-npx serve .
-
-# PHP
-php -S localhost:8080
+npm install
+npm run dev      # http://localhost:5173 — hot reload
+npm test         # run unit tests
+npm run build    # output to dist/
+npm run preview  # preview production build locally
 ```
 
-Open `http://localhost:8080` in your browser.
+Geolocation and fetches require the dev server (not `file://`).
 
 ## Deploy to GitHub Pages
 
+**One-time setup:**
+
 1. Push this repo to GitHub.
-2. Go to **Settings → Pages**.
-3. Under **Build and deployment**, set **Source** to **GitHub Actions**.
-4. Push to `main` — the included workflow deploys automatically.
+2. **Settings → Pages → Source → GitHub Actions**.
+3. Push to `main` — CI runs tests, builds `dist/`, and deploys.
 
-Your site will be available at `https://<username>.github.io/<repo>/`.
+Live URL: `https://miguelcarcamov.github.io/air-check-app/`
 
-### Manual Pages setup (alternative)
+If you rename the repo, set `VITE_BASE_PATH` in `.github/workflows/pages.yml` to match (`/<repo-name>/`).
 
-If you prefer not to use Actions: set **Source** to **Deploy from a branch**, branch `main`, folder `/ (root)`.
+### Troubleshooting
+
+| Error | Fix |
+|-------|-----|
+| `Get Pages site failed` / `Not Found` | Enable Pages with source **GitHub Actions** in repo Settings. |
+| Assets 404 on Pages | `VITE_BASE_PATH` must match the repo name (e.g. `/air-check-app/`). |
+| `Node 20 is being deprecated` | Informational — workflow uses Node 22. |
 
 ## Configuration
 
-All tunables live in `js/config.js`:
+All tunables live in `src/config.js`:
 
 | Constant | Purpose |
 |----------|---------|

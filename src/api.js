@@ -7,15 +7,27 @@ import {
 } from "./config.js";
 import { extractCurrent } from "./quality.js";
 
+/**
+ * @param {string} url
+ * @param {number} ms
+ * @returns {Promise<Response>}
+ */
 export function fetchWithTimeout(url, ms) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
 }
 
+/**
+ * @param {number} lat1
+ * @param {number} lon1
+ * @param {number} lat2
+ * @param {number} lon2
+ * @returns {number} Distance in km
+ */
 export function haversineKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
-  const toRad = (d) => (d * Math.PI) / 180;
+  const toRad = (/** @type {number} */ d) => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
   const a =
@@ -24,6 +36,7 @@ export function haversineKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+/** @returns {Promise<import('./types.js').Coords>} */
 export function getPosition() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -38,10 +51,12 @@ export function getPosition() {
   });
 }
 
+/** @param {string} str */
 function stripDiacritics(str) {
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+/** @param {string} term @returns {Promise<import('./types.js').GeocodeResult[]>} */
 async function geocodeQuery(term) {
   const url = `${OPEN_METEO_GEOCODING}?name=${encodeURIComponent(term)}&count=5&language=en&format=json`;
   const res = await fetch(url);
@@ -50,6 +65,10 @@ async function geocodeQuery(term) {
   return data.results || [];
 }
 
+/**
+ * @param {string} query
+ * @returns {Promise<import('./types.js').GeocodeResult[]>}
+ */
 export async function searchLocations(query) {
   const term = query.split(",")[0].trim();
   let results = await geocodeQuery(term);
@@ -60,6 +79,10 @@ export async function searchLocations(query) {
   return results;
 }
 
+/**
+ * @param {import('./types.js').Coords} coords
+ * @returns {Promise<string>}
+ */
 export async function loadLocationLabel(coords) {
   try {
     const res = await fetch(
@@ -73,6 +96,10 @@ export async function loadLocationLabel(coords) {
   }
 }
 
+/**
+ * @param {import('./types.js').Coords} coords
+ * @returns {Promise<{ value: number, distanceKm: number, name: string } | null>}
+ */
 async function findNearestSincaPM25(coords) {
   const res = await fetchWithTimeout(SINCA_URL, 12000);
   if (!res.ok) throw new Error("SINCA request failed");
@@ -81,7 +108,7 @@ async function findNearestSincaPM25(coords) {
 
   for (const st of stations) {
     if (!st.realtime || st.latitud == null || st.longitud == null) continue;
-    const pm25 = st.realtime.find((r) => r.code === "PM25");
+    const pm25 = st.realtime.find((/** @type {{ code: string }} */ r) => r.code === "PM25");
     if (!pm25?.tableRow) continue;
     const tr = pm25.tableRow;
     if (tr.value == null || tr.color === "#b4b4b4") continue;
@@ -101,6 +128,10 @@ async function findNearestSincaPM25(coords) {
   return best && best.distanceKm <= SINCA_MAX_DISTANCE_KM ? best : null;
 }
 
+/**
+ * @param {import('./types.js').Coords} coords
+ * @returns {Promise<import('./types.js').OutdoorReading>}
+ */
 export async function loadAirQuality(coords) {
   const url =
     `${OPEN_METEO_AIR_QUALITY}?latitude=${coords.lat}&longitude=${coords.lon}` +
@@ -112,6 +143,7 @@ export async function loadAirQuality(coords) {
   const cur = extractCurrent(data);
 
   let pm25Value = cur.pm2_5;
+  /** @type {import('./types.js').Pm25Source} */
   let pm25Source = { type: "model", label: "Modeled estimate (CAMS) — no nearby station" };
 
   try {
@@ -136,6 +168,10 @@ export async function loadAirQuality(coords) {
   };
 }
 
+/**
+ * @param {string} bridgeUrl
+ * @returns {Promise<import('./types.js').IndoorReading>}
+ */
 export async function fetchBridgeReading(bridgeUrl) {
   const res = await fetchWithTimeout(bridgeUrl, 4000);
   if (!res.ok) throw new Error("bad status");

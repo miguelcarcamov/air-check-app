@@ -14,7 +14,6 @@
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="css/main.css" />
   </head>
   <body>
     <div class="shell">
@@ -195,6 +194,19 @@
       </div>
     </div>
 
-    <script type="module" src="js/main.js"></script>
+    <template id="tpl-settings-message">
+      <div class="settings-current"></div>
+    </template>
+
+    <template id="tpl-loc-result">
+      <button type="button" class="loc-result-btn"></button>
+    </template>
+
+    <template id="tpl-loc-override">
+      <span class="loc-override-label"></span>
+      <button type="button" class="link-btn loc-override-clear">use GPS instead</button>
+    </template>
+
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>

@@ -1,5 +1,6 @@
 /** WHO Global Air Quality Guidelines (2021) and related thresholds. */
 
+/** @type {import('./types.js').Tier[]} */
 export const PM25_TIERS = [
   { max: 15, level: 0, key: "good", label: "Good (meets WHO guideline)", color: "var(--good)" },
   { max: 25, level: 1, key: "moderate", label: "Moderate (WHO interim target 4)", color: "var(--moderate)" },
@@ -9,9 +10,14 @@ export const PM25_TIERS = [
   { max: Infinity, level: 5, key: "extreme", label: "Extreme (exceeds all WHO targets)", color: "var(--hazard)" },
 ];
 
-export const WHO_PM25_GUIDELINE = 15; // µg/m³, 24-hour mean
-export const WHO_OZONE_GUIDELINE = 100; // µg/m³, 8-hour mean
-export const GAUGE_SCALE_PM25 = 75; // shared 0–75 µg/m³ span for gauge bars
+/** @type {number} µg/m³, 24-hour mean */
+export const WHO_PM25_GUIDELINE = 15;
+
+/** @type {number} µg/m³, 8-hour mean */
+export const WHO_OZONE_GUIDELINE = 100;
+
+/** Shared 0–75 µg/m³ span for gauge bars. */
+export const GAUGE_SCALE_PM25 = 75;
 
 export const SINCA_URL = "https://sinca.mma.gob.cl/index.php/json/listadomapa2k19";
 export const SINCA_MAX_DISTANCE_KM = 30;
