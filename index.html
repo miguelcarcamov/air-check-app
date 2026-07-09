@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Compare outdoor and indoor air quality using WHO guidelines. Exercise and purifier recommendations for your location."
+    />
+    <title>Air Check</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/main.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <div class="strip" id="strip"></div>
+      <div class="wrap">
+        <header>
+          <div>
+            <h1>Air Check</h1>
+            <div class="subtitle" id="subtitle">
+              Locating you…
+              <button class="link-btn" id="changeLocBtn" type="button">change</button>
+            </div>
+          </div>
+          <div class="header-actions">
+            <button class="refresh-btn" id="settingsBtn" title="Settings" type="button">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path
+                  d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+                />
+              </svg>
+            </button>
+            <button class="refresh-btn" id="refreshBtn" title="Refresh" type="button">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M21 2v6h-6" />
+                <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+                <path d="M3 22v-6h6" />
+                <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <div class="settings-panel" id="settingsPanel" style="display: none">
+          <div class="settings-block">
+            <div class="settings-label">Location</div>
+            <div class="settings-sub">
+              Used when GPS access isn't available, or to always check a specific place instead of
+              wherever you are.
+            </div>
+            <div class="manual-loc">
+              <input type="text" id="locInput" placeholder="e.g. Ñuñoa" />
+              <button id="locSearchBtn" type="button">Search</button>
+            </div>
+            <div id="locResults"></div>
+            <div class="settings-sub" style="margin-top: 10px">
+              Or, if search doesn't work, enter coordinates directly:
+            </div>
+            <div class="manual-loc">
+              <input
+                type="text"
+                inputmode="decimal"
+                id="latInput"
+                placeholder="latitude"
+                style="max-width: 45%"
+              />
+              <input
+                type="text"
+                inputmode="decimal"
+                id="lonInput"
+                placeholder="longitude"
+                style="max-width: 45%"
+              />
+              <button id="coordSaveBtn" type="button">Use</button>
+            </div>
+            <div id="locCurrentOverride" class="settings-current"></div>
+          </div>
+          <div class="settings-block">
+            <div class="settings-label">Indoor sensor bridge</div>
+            <div class="settings-sub">
+              Optional. Point this at a small local endpoint (e.g. a Xiaomi purifier bridge) that
+              returns JSON like <code>{"pm2_5": 23}</code>. Falls back to the manual box below if it
+              can't be reached.
+            </div>
+            <div class="manual-loc">
+              <input type="text" id="bridgeInput" placeholder="https://your-bridge-url/pm25" />
+              <button id="bridgeSaveBtn" type="button">Save</button>
+            </div>
+            <div id="bridgeStatus" class="settings-current"></div>
+          </div>
+        </div>
+
+        <div id="statusBanner" style="display: none" class="status-banner"></div>
+
+        <div class="cards">
+          <div class="card">
+            <div class="card-label">Outside</div>
+            <div class="aqi-num" id="outAqiNum" style="color: var(--unknown)">--</div>
+            <div class="aqi-cat" id="outAqiCat" style="color: var(--unknown)">Loading…</div>
+            <div class="pm-line" id="outPmLine">PM2.5 -- µg/m³</div>
+            <div class="source-line" id="outSourceLine"></div>
+          </div>
+          <div class="card">
+            <div class="card-label">Inside</div>
+            <div class="aqi-num" id="inAqiNum" style="color: var(--unknown)">--</div>
+            <div class="aqi-cat" id="inAqiCat" style="color: var(--unknown)">No reading</div>
+            <div class="indoor-input-row">
+              <input type="number" inputmode="decimal" id="indoorInput" placeholder="PM2.5 µg/m³" />
+              <button id="saveIndoorBtn" type="button">Save</button>
+            </div>
+            <div class="indoor-meta" id="indoorMeta">From your sensor's app</div>
+          </div>
+        </div>
+
+        <div class="gauge-card">
+          <div class="gauge-title">PM2.5 — outside vs inside</div>
+          <div class="gauge-row">
+            <div class="gauge-row-label">
+              <span>Outside</span><span id="gaugeOutVal">--</span>
+            </div>
+            <div class="gauge-track">
+              <div
+                class="gauge-fill"
+                id="gaugeOutFill"
+                style="width: 0%; background: var(--unknown)"
+              ></div>
+            </div>
+          </div>
+          <div class="gauge-row">
+            <div class="gauge-row-label">
+              <span>Inside</span><span id="gaugeInVal">--</span>
+            </div>
+            <div class="gauge-track">
+              <div
+                class="gauge-fill"
+                id="gaugeInFill"
+                style="width: 0%; background: var(--unknown)"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="verdicts">
+          <div class="verdict" id="exerciseVerdict" style="border-left-color: var(--unknown)">
+            <div class="verdict-head">
+              <span class="verdict-icon" aria-hidden="true">🏃</span>
+              <span class="verdict-title" id="exerciseTitle">Checking…</span>
+            </div>
+            <div class="verdict-text" id="exerciseText">Fetching outdoor conditions.</div>
+          </div>
+          <div class="verdict" id="purifierVerdict" style="border-left-color: var(--unknown)">
+            <div class="verdict-head">
+              <span class="verdict-icon" aria-hidden="true">🌀</span>
+              <span class="verdict-title" id="purifierTitle">Add a reading</span>
+            </div>
+            <div class="verdict-text" id="purifierText">
+              Enter your indoor PM2.5 to get a recommendation.
+            </div>
+          </div>
+        </div>
+
+        <div class="footer-note">
+          "×" shows PM2.5 as a multiple of WHO's 2021 24-hour guideline (15 µg/m³). Outdoor PM2.5
+          comes from the nearest real SINCA government monitoring station when one is within 30 km
+          (marked ●); otherwise it falls back to a modeled estimate from Open-Meteo/CAMS (marked ○).
+          Modeled estimates are known to carry meaningful, region-dependent bias in published
+          validation studies (roughly 5–20%+ in regions that have been studied), but no dedicated
+          validation exists for Chile specifically — treat a ○ reading as a rough guide, not a
+          precise number. Ozone always comes from the model. Indoor reading is whatever you last
+          logged from your own sensor.
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
