@@ -7,7 +7,7 @@ import {
   SINCA_URL,
 } from "./config.js";
 import { assessInversion, localClockFromOffset } from "./inversion.js";
-import { extractCurrent } from "./quality.js";
+import { computePm25Trend, extractCurrent } from "./quality.js";
 
 /**
  * @param {string} url
@@ -143,6 +143,11 @@ export async function loadAirQuality(coords) {
   if (!res.ok) throw new Error("air quality fetch failed");
   const data = await res.json();
   const cur = extractCurrent(data);
+  const pm25Trend = computePm25Trend(
+    data.hourly?.pm2_5,
+    data.hourly?.time ?? [],
+    data.utc_offset_seconds || 0,
+  );
 
   let pm25Value = cur.pm2_5;
   /** @type {import('./types.js').Pm25Source} */
@@ -166,6 +171,59 @@ export async function loadAirQuality(coords) {
     pm10: cur.pm10,
     ozone: cur.ozone,
     pm25Source,
+    pm25Trend,
+    fetchedAt: Date.now(),
+  };
+}
+
+const WEATHER_CURRENT =
+  "temperature_2m,temperature_80m,temperature_120m,temperature_180m," +
+  "wind_speed_10m,boundary_layer_height,is_day";
+
+/**
+ * @param {Record<string, unknown>} data Open-Meteo forecast JSON
+ * @param {import('./types.js').Pm25Trend | null} [pm25Trend]
+ * @returns {import('./types.js').LocalContext}
+ */
+export function buildLocalContext(data, pm25Trend = null) {
+  const offsetSec = /** @type {number} */ (data.utc_offset_seconds) || 0;
+  const { localHour, month } = localClockFromOffset(offsetSec);
+  const current = /** @type {Record<string, number>} */ (data.current ?? {});
+
+  const temp2m = current.temperature_2m ?? null;
+  const temp80m = current.temperature_80m ?? null;
+  const temp120m = current.temperature_120m ?? null;
+  const temp180m = current.temperature_180m ?? null;
+  const boundaryLayerHeightM = current.boundary_layer_height ?? null;
+  const windSpeedKmh = current.wind_speed_10m ?? null;
+  /** @type {0 | 1 | null} */
+  const isDay =
+    current.is_day === 0 || current.is_day === 1 ? /** @type {0 | 1} */ (current.is_day) : null;
+
+  return {
+    timezone: /** @type {string} */ (data.timezone) || "UTC",
+    localHour,
+    month,
+    temp2m,
+    temp80m,
+    temp120m,
+    temp180m,
+    boundaryLayerHeightM,
+    windSpeedKmh,
+    isDay,
+    pm25Trend,
+    inversion: assessInversion({
+      temp2m,
+      temp80m,
+      temp120m,
+      temp180m,
+      boundaryLayerHeightM,
+      windSpeedKmh,
+      localHour,
+      month,
+      isDay,
+      pm25Trend,
+    }),
     fetchedAt: Date.now(),
   };
 }
@@ -188,31 +246,13 @@ export async function fetchBridgeReading(bridgeUrl) {
  * @param {import('./types.js').Coords} coords
  * @returns {Promise<import('./types.js').LocalContext>}
  */
-export async function loadLocalContext(coords) {
+export async function loadLocalContext(coords, pm25Trend = null) {
   const url =
     `${OPEN_METEO_FORECAST}?latitude=${coords.lat}&longitude=${coords.lon}` +
-    "&current=temperature_2m,temperature_80m,is_day&timezone=auto";
+    `&current=${WEATHER_CURRENT}&timezone=auto`;
 
   const res = await fetch(url);
   if (!res.ok) throw new Error("weather fetch failed");
   const data = await res.json();
-
-  const offsetSec = data.utc_offset_seconds || 0;
-  const { localHour, month } = localClockFromOffset(offsetSec);
-  const temp2m = data.current?.temperature_2m ?? null;
-  const temp80m = data.current?.temperature_80m ?? null;
-  /** @type {0 | 1 | null} */
-  const isDay =
-    data.current?.is_day === 0 || data.current?.is_day === 1 ? data.current.is_day : null;
-
-  return {
-    timezone: data.timezone || "UTC",
-    localHour,
-    month,
-    temp2m,
-    temp80m,
-    isDay,
-    inversion: assessInversion({ temp2m, temp80m, localHour, month, isDay }),
-    fetchedAt: Date.now(),
-  };
+  return buildLocalContext(data, pm25Trend);
 }

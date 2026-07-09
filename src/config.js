@@ -33,3 +33,11 @@ export const STORAGE_KEYS = {
   indoorReading: "indoor-reading",
   lastLocation: "last-location",
 };
+
+/** Planetary boundary layer below this (m) → strong surface trapping. */
+export const BLH_SHALLOW_M = 300;
+export const BLH_DEEP_M = 1500;
+
+/** Wind below this (km/h) at 10 m → stagnant surface air. */
+export const WIND_CALM_KMH = 6;
+export const WIND_DISPERSIVE_KMH = 25;

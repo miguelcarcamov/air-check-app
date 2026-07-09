@@ -46,7 +46,8 @@ async function tryBridge() {
 }
 
 async function loadOutdoorBundle(coords) {
-  const [outdoor, local] = await Promise.all([loadAirQuality(coords), loadLocalContext(coords)]);
+  const outdoor = await loadAirQuality(coords);
+  const local = await loadLocalContext(coords, outdoor.pm25Trend);
   state.outdoor = outdoor;
   state.local = local;
 }

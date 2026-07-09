@@ -160,3 +160,41 @@ export function extractCurrent(data) {
     ozone: hourly.ozone?.[idx] ?? null,
   };
 }
+
+/**
+ * @param {string[]} times
+ * @param {number} utcOffsetSeconds
+ * @returns {number}
+ */
+export function currentHourlyIndex(times, utcOffsetSeconds) {
+  const offsetMs = (utcOffsetSeconds || 0) * 1000;
+  const nowLocal = new Date(Date.now() + offsetMs);
+  const pad = (/** @type {number} */ n) => String(n).padStart(2, "0");
+  const nowStr = `${nowLocal.getUTCFullYear()}-${pad(nowLocal.getUTCMonth() + 1)}-${pad(nowLocal.getUTCDate())}T${pad(nowLocal.getUTCHours())}:00`;
+
+  let idx = 0;
+  for (let i = 0; i < times.length; i++) {
+    if (times[i] <= nowStr) idx = i;
+  }
+  return idx;
+}
+
+/**
+ * Compare current modeled PM2.5 to ~3 hours earlier.
+ * @param {number[] | undefined} hourlyPm25
+ * @param {string[]} times
+ * @param {number} utcOffsetSeconds
+ * @returns {import('./types.js').Pm25Trend | null}
+ */
+export function computePm25Trend(hourlyPm25, times, utcOffsetSeconds) {
+  if (!hourlyPm25?.length || !times?.length) return null;
+  const idx = currentHourlyIndex(times, utcOffsetSeconds);
+  if (idx < 3) return null;
+  const now = hourlyPm25[idx];
+  const earlier = hourlyPm25[idx - 3];
+  if (now == null || earlier == null || earlier <= 0) return null;
+  const change = (now - earlier) / earlier;
+  if (change > 0.08) return "rising";
+  if (change < -0.08) return "falling";
+  return "stable";
+}

@@ -1,19 +1,21 @@
 /**
  * Thermal inversion heuristics for ventilation timing.
  *
- * Uses Open-Meteo's location timezone, 2 m vs 80 m temperatures (inversion
- * signature when air aloft is warmer), and is_day (sun below horizon).
- *
- * Diurnal pattern in basin cities like Santiago:
- * - Night / early morning: inversion traps pollution near the ground
- * - Midday: sun mixes the layer — best ventilation window if outdoor PM allows
- * - Evening: surface cools and inversion rebuilds — pollution often rises again
+ * Signals (all from Open-Meteo at the user's coordinates):
+ * - Local time + is_day (sun up/down)
+ * - Temperature profile at 2 / 80 / 120 / 180 m
+ * - Planetary boundary layer height (shallow = trapped pollution)
+ * - Wind at 10 m (calm = stagnant)
+ * - Modeled PM2.5 trend over the last ~3 hours
  * @module inversion
  */
+
+import { BLH_DEEP_M, BLH_SHALLOW_M, WIND_CALM_KMH, WIND_DISPERSIVE_KMH } from "./config.js";
 
 /**
  * @typedef {import('./types.js').InversionAssessment} InversionAssessment
  * @typedef {import('./types.js').DiurnalPeriod} DiurnalPeriod
+ * @typedef {import('./types.js').Pm25Trend} Pm25Trend
  * @typedef {import('./types.js').Verdict} Verdict
  */
 
@@ -31,22 +33,60 @@ export function inferDiurnalPeriod(localHour, isDay) {
 }
 
 /**
+ * @param {number | null | undefined} temp2m
+ * @param {Array<number | null | undefined>} aloftTemps
+ * @returns {boolean}
+ */
+function isMultiLevelInversion(temp2m, aloftTemps) {
+  if (temp2m == null) return false;
+  const valid = aloftTemps.filter((t) => t != null);
+  if (valid.length < 2) return false;
+  return valid.every((t) => (t ?? 0) - temp2m >= 0.3);
+}
+
+/**
+ * @param {Pm25Trend | null | undefined} trend
+ * @returns {string}
+ */
+function formatPmTrend(trend) {
+  if (trend === "rising") return "Modeled outdoor PM2.5 rising over the last ~3 h.";
+  if (trend === "falling") return "Modeled outdoor PM2.5 falling over the last ~3 h.";
+  if (trend === "stable") return "Modeled outdoor PM2.5 steady over the last ~3 h.";
+  return "";
+}
+
+/**
  * @param {Object} input
- * @param {number | null} input.temp2m °C at 2 m
- * @param {number | null} input.temp80m °C at 80 m
- * @param {number} input.localHour 0–23 local clock
- * @param {number} input.month 1–12 local calendar month
- * @param {0 | 1 | null} [input.isDay] 1 = sun up, 0 = dusk/night per Open-Meteo
+ * @param {number | null} input.temp2m
+ * @param {number | null} input.temp80m
+ * @param {number | null} [input.temp120m]
+ * @param {number | null} [input.temp180m]
+ * @param {number | null} [input.boundaryLayerHeightM]
+ * @param {number | null} [input.windSpeedKmh]
+ * @param {number} input.localHour
+ * @param {number} input.month
+ * @param {0 | 1 | null} [input.isDay]
+ * @param {Pm25Trend | null} [input.pm25Trend]
  * @returns {InversionAssessment}
  */
-export function assessInversion({ temp2m, temp80m, localHour, month, isDay = null }) {
+export function assessInversion({
+  temp2m,
+  temp80m,
+  temp120m = null,
+  temp180m = null,
+  boundaryLayerHeightM = null,
+  windSpeedKmh = null,
+  localHour,
+  month,
+  isDay = null,
+  pm25Trend = null,
+}) {
   let gradientC = null;
   if (temp2m != null && temp80m != null) {
     gradientC = temp80m - temp2m;
   }
 
   const period = inferDiurnalPeriod(localHour, isDay);
-  // Southern-hemisphere cool season — Santiago-style basin inversions peak Apr–Sep.
   const coolSeason = month >= 4 && month <= 9;
 
   let score = 0;
@@ -56,41 +96,80 @@ export function assessInversion({ temp2m, temp80m, localHour, month, isDay = nul
     if (gradientC < -0.5) score -= 2;
   }
 
+  if (isMultiLevelInversion(temp2m, [temp80m, temp120m, temp180m])) score += 1;
+
+  if (boundaryLayerHeightM != null) {
+    if (boundaryLayerHeightM <= 100) score += 3;
+    else if (boundaryLayerHeightM <= BLH_SHALLOW_M) score += 2;
+    else if (boundaryLayerHeightM <= 600) score += 1;
+    else if (boundaryLayerHeightM >= BLH_DEEP_M) score -= 2;
+  }
+
+  if (windSpeedKmh != null) {
+    if (windSpeedKmh <= WIND_CALM_KMH) score += 1;
+    else if (windSpeedKmh >= WIND_DISPERSIVE_KMH) score -= 1;
+  }
+
   if (period === "night" || period === "morning") score += 2;
   if (period === "evening") score += 2;
   if (period === "midday") score -= 3;
   if (coolSeason) score += 1;
 
+  if (pm25Trend === "rising" && period !== "midday") score += 1;
+  if (pm25Trend === "falling") score -= 1;
+
   /** @type {import('./types.js').InversionPhase} */
   let phase;
-  if (gradientC == null && isDay == null) {
+  if (gradientC == null && boundaryLayerHeightM == null && isDay == null) {
     if (period === "night" || (period === "morning" && coolSeason)) phase = "active";
     else if (period === "evening") phase = "active";
     else if (period === "morning") phase = "breaking";
     else phase = "unlikely";
-  } else if (score >= 4) {
+  } else if (score >= 5) {
     phase = "active";
-  } else if (score >= 1) {
+  } else if (score >= 2) {
     if (
       period === "evening" ||
       period === "night" ||
-      (period === "morning" && isDay === 0)
+      (period === "morning" && isDay === 0) ||
+      (boundaryLayerHeightM != null && boundaryLayerHeightM <= BLH_SHALLOW_M)
     ) {
       phase = "active";
     } else {
       phase = "breaking";
     }
+  } else if (score >= 0) {
+    phase = period === "midday" ? "unlikely" : "breaking";
   } else {
     phase = "unlikely";
   }
 
+  const tempParts = [temp2m, temp80m, temp120m, temp180m]
+    .map((t) => (t != null ? `${t.toFixed(1)}°C` : null))
+    .filter(Boolean);
   const gradientNote =
-    gradientC != null
-      ? `Surface ${temp2m?.toFixed(1)}°C · 80 m ${temp80m?.toFixed(1)}°C (${gradientC >= 0 ? "+" : ""}${gradientC.toFixed(1)}°C aloft).`
-      : "No temperature profile — using local time and daylight.";
+    tempParts.length >= 2
+      ? `Profile 2–180 m: ${tempParts.join(" → ")}${gradientC != null ? ` (${gradientC >= 0 ? "+" : ""}${gradientC.toFixed(1)}°C aloft at 80 m).` : "."}`
+      : "No temperature profile — using time-of-day and mixing depth.";
 
-  const daylightNote =
-    isDay === 0 ? " Sun is down." : isDay === 1 ? " Daylight." : "";
+  const mixingParts = [];
+  if (boundaryLayerHeightM != null) {
+    mixingParts.push(
+      boundaryLayerHeightM <= BLH_SHALLOW_M
+        ? `Shallow mixing layer (${Math.round(boundaryLayerHeightM)} m)`
+        : `Mixing layer ~${Math.round(boundaryLayerHeightM)} m`,
+    );
+  }
+  if (windSpeedKmh != null) {
+    mixingParts.push(
+      windSpeedKmh <= WIND_CALM_KMH
+        ? `calm wind (${windSpeedKmh.toFixed(1)} km/h)`
+        : `wind ${windSpeedKmh.toFixed(1)} km/h`,
+    );
+  }
+  const mixingNote = mixingParts.length ? `${mixingParts.join(" · ")}.` : "";
+  const daylightNote = isDay === 0 ? " Sun is down." : isDay === 1 ? " Daylight." : "";
+  const trendNote = formatPmTrend(pm25Trend);
 
   const labels = {
     active: period === "evening" ? "Forming (evening)" : "Likely active",
@@ -100,14 +179,10 @@ export function assessInversion({ temp2m, temp80m, localHour, month, isDay = nul
   };
 
   const periodDetails = {
-    night:
-      "Overnight inversion traps pollutants in a shallow layer near the ground.",
-    morning:
-      "Cool surface air and light winds often keep pollution pooled until late morning.",
-    midday:
-      "Solar heating mixes the lowest layer — outdoor readings better reflect breathable air.",
-    evening:
-      "As the surface cools after sunset, a fresh inversion often forms and pollution can climb again.",
+    night: "Overnight inversion traps pollutants in a shallow layer near the ground.",
+    morning: "Cool surface air and light winds often keep pollution pooled until late morning.",
+    midday: "Solar heating mixes the lowest layer — outdoor readings better reflect breathable air.",
+    evening: "As the surface cools after sunset, a fresh inversion often forms and pollution can climb again.",
   };
 
   return {
@@ -115,18 +190,32 @@ export function assessInversion({ temp2m, temp80m, localHour, month, isDay = nul
     period,
     score,
     gradientC,
-    isDay: isDay ?? null,
+    boundaryLayerHeightM,
+    windSpeedKmh,
+    pm25Trend,
     label: labels[phase],
-    detail: `${gradientNote}${daylightNote} ${periodDetails[period]}`,
+    detail: [gradientNote, mixingNote, trendNote, daylightNote, periodDetails[period]]
+      .filter(Boolean)
+      .join(" "),
   };
 }
 
 /**
  * @param {DiurnalPeriod} period
+ * @param {InversionAssessment | null | undefined} inversion
  * @returns {string}
  */
-function activeVentilationHint(period) {
+function activeVentilationHint(period, inversion) {
+  const shallow =
+    inversion?.boundaryLayerHeightM != null &&
+    inversion.boundaryLayerHeightM <= BLH_SHALLOW_M;
+  const rising = inversion?.pm25Trend === "rising";
+
   if (period === "evening" || period === "night") {
+    if (shallow && rising) {
+      return "keep windows closed — the mixing layer is shallow and outdoor PM is rising";
+    }
+    if (shallow) return "keep windows closed — the mixing layer is very shallow right now";
     return "keep windows closed as the evening inversion builds";
   }
   if (period === "morning") {
@@ -136,9 +225,8 @@ function activeVentilationHint(period) {
 }
 
 /**
- * Ventilation advice combining PM comparison with inversion timing.
- * @param {number | null | undefined} indoorPm µg/m³
- * @param {number | null | undefined} outdoorPm µg/m³
+ * @param {number | null | undefined} indoorPm
+ * @param {number | null | undefined} outdoorPm
  * @param {InversionAssessment | null | undefined} inversion
  * @returns {Verdict}
  */
@@ -156,13 +244,13 @@ export function ventilationVerdict(indoorPm, outdoorPm, inversion) {
   const period = inversion?.period ?? "morning";
 
   if (phase === "active") {
-    const hint = activeVentilationHint(period);
+    const hint = activeVentilationHint(period, inversion);
     if (outdoorCleaner) {
       return {
         title: period === "evening" ? "Don't ventilate yet" : "Wait to ventilate",
         text:
           period === "evening"
-            ? `Evening cooling is rebuilding a surface inversion — pollution near the ground often rises even when sensors look slightly better. ${hint}.`
+            ? `Evening cooling is rebuilding a surface inversion — near-ground pollution often rises even when readings look slightly better. ${hint}.`
             : `Inversion likely — pollution pools near the ground. Even though outdoor PM looks lower, ${hint}.`,
       };
     }
@@ -179,7 +267,7 @@ export function ventilationVerdict(indoorPm, outdoorPm, inversion) {
       title: period === "evening" ? "Inversion forming" : "Hold off on windows",
       text:
         period === "evening"
-          ? "Surface is cooling and the air layer near the ground is stabilizing — typical time for pollution to worsen. Keep windows closed."
+          ? `Surface is cooling and the lowest air layer is stabilizing — a typical time for pollution to worsen. ${hint}.`
           : "Inversion conditions mean outdoor air near the ground is stagnant and unreliable. Keep windows closed until mixing improves.",
     };
   }

@@ -32,7 +32,12 @@
  * @property {number | null} pm10
  * @property {number | null} ozone
  * @property {Pm25Source} pm25Source
+ * @property {import('./types.js').Pm25Trend | null} pm25Trend Modeled PM2.5 trend (last ~3 h)
  * @property {number} fetchedAt Unix ms timestamp
+ */
+
+/**
+ * @typedef {'rising' | 'stable' | 'falling'} Pm25Trend
  */
 
 /**
@@ -49,7 +54,9 @@
  * @property {DiurnalPeriod} period Local time-of-day bucket
  * @property {number} score Heuristic score (higher = stronger inversion signal)
  * @property {number | null} gradientC temperature_80m − temperature_2m in °C
- * @property {0 | 1 | null} isDay Open-Meteo daylight flag
+ * @property {number | null} boundaryLayerHeightM
+ * @property {number | null} windSpeedKmh
+ * @property {Pm25Trend | null} pm25Trend
  * @property {string} label Short UI label
  * @property {string} detail One-line explanation
  */
@@ -61,7 +68,12 @@
  * @property {number} month 1–12 at the location
  * @property {number | null} temp2m °C at 2 m
  * @property {number | null} temp80m °C at 80 m
+ * @property {number | null} temp120m °C at 120 m
+ * @property {number | null} temp180m °C at 180 m
+ * @property {number | null} boundaryLayerHeightM Planetary boundary layer depth
+ * @property {number | null} windSpeedKmh Wind at 10 m
  * @property {0 | 1 | null} isDay 1 = daylight, 0 = dusk/night
+ * @property {Pm25Trend | null} pm25Trend Recent modeled outdoor PM2.5 direction
  * @property {InversionAssessment} inversion
  * @property {number} fetchedAt Unix ms timestamp
  */
