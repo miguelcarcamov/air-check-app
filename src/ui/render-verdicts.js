@@ -36,7 +36,11 @@ export function renderVerdicts(outCat, outPmLevel, outO3Level, inCat, inLevel, i
     const ventColor =
       vv.title === "Good window opening" || vv.title === "Ventilation can help"
         ? "var(--good)"
-        : vv.title === "Wait to ventilate" || vv.title === "Keep windows closed" || vv.title === "Hold off on windows"
+        : vv.title === "Wait to ventilate" ||
+            vv.title === "Keep windows closed" ||
+            vv.title === "Hold off on windows" ||
+            vv.title === "Don't ventilate yet" ||
+            vv.title === "Inversion forming"
           ? "var(--bad)"
           : "var(--moderate)";
     ventEl.style.borderLeftColor = ventColor;

@@ -40,10 +40,16 @@
  */
 
 /**
+ * @typedef {'night' | 'morning' | 'midday' | 'evening'} DiurnalPeriod
+ */
+
+/**
  * @typedef {Object} InversionAssessment
  * @property {InversionPhase} phase
+ * @property {DiurnalPeriod} period Local time-of-day bucket
  * @property {number} score Heuristic score (higher = stronger inversion signal)
  * @property {number | null} gradientC temperature_80m − temperature_2m in °C
+ * @property {0 | 1 | null} isDay Open-Meteo daylight flag
  * @property {string} label Short UI label
  * @property {string} detail One-line explanation
  */
@@ -55,6 +61,7 @@
  * @property {number} month 1–12 at the location
  * @property {number | null} temp2m °C at 2 m
  * @property {number | null} temp80m °C at 80 m
+ * @property {0 | 1 | null} isDay 1 = daylight, 0 = dusk/night
  * @property {InversionAssessment} inversion
  * @property {number} fetchedAt Unix ms timestamp
  */

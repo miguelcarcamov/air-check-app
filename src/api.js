@@ -191,7 +191,7 @@ export async function fetchBridgeReading(bridgeUrl) {
 export async function loadLocalContext(coords) {
   const url =
     `${OPEN_METEO_FORECAST}?latitude=${coords.lat}&longitude=${coords.lon}` +
-    "&current=temperature_2m,temperature_80m&timezone=auto";
+    "&current=temperature_2m,temperature_80m,is_day&timezone=auto";
 
   const res = await fetch(url);
   if (!res.ok) throw new Error("weather fetch failed");
@@ -201,6 +201,9 @@ export async function loadLocalContext(coords) {
   const { localHour, month } = localClockFromOffset(offsetSec);
   const temp2m = data.current?.temperature_2m ?? null;
   const temp80m = data.current?.temperature_80m ?? null;
+  /** @type {0 | 1 | null} */
+  const isDay =
+    data.current?.is_day === 0 || data.current?.is_day === 1 ? data.current.is_day : null;
 
   return {
     timezone: data.timezone || "UTC",
@@ -208,7 +211,8 @@ export async function loadLocalContext(coords) {
     month,
     temp2m,
     temp80m,
-    inversion: assessInversion({ temp2m, temp80m, localHour, month }),
+    isDay,
+    inversion: assessInversion({ temp2m, temp80m, localHour, month, isDay }),
     fetchedAt: Date.now(),
   };
 }
